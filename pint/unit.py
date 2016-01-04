@@ -42,6 +42,13 @@ from .errors import (DimensionalityError, UndefinedUnitError,
 from .pint_eval import build_eval_tree
 from . import systems
 
+try:
+    from .constants import constant
+except ImportError:
+    def constant(registry, name, with_error):
+        raise RuntimeError("Pint requires the 'scipy' package to provide constants lookup")
+
+
 
 def _capture_till_end(ifile):
     context = []
@@ -279,6 +286,7 @@ class UnitRegistry(object):
                             'warn', 'raise', 'ignore'
     :type on_redefintion: str
     """
+    constant = constant
 
     def __init__(self, filename='', force_ndarray=False, default_as_delta=True,
                  autoconvert_offset_to_baseunit=False,
@@ -370,7 +378,7 @@ class UnitRegistry(object):
             ['define', 'load_definitions', 'get_name', 'get_symbol',
              'get_dimensionality', 'Quantity', 'wraps',
              'parse_units', 'parse_expression', 'pi_theorem',
-             'convert', 'get_base_units']
+             'convert', 'get_base_units', 'constant']
 
     @property
     def default_format(self):
@@ -1184,7 +1192,7 @@ class UnitRegistry(object):
         self._parse_unit_cache[input_string] = ret
 
         return ret
-    
+
     def _eval_token(self, token, case_sensitive=True, **values):
         token_type = token[0]
         token_text = token[1]
@@ -1194,7 +1202,7 @@ class UnitRegistry(object):
             elif token_text in values:
                 return self.Quantity(values[token_text])
             else:
-                return self.Quantity(1, UnitsContainer({self.get_name(token_text, 
+                return self.Quantity(1, UnitsContainer({self.get_name(token_text,
                                                                       case_sensitive=case_sensitive) : 1}))
         elif token_type == NUMBER:
             return ParserHelper.eval_token(token)
@@ -1207,13 +1215,13 @@ class UnitRegistry(object):
         Numerical constants can be specified as keyword arguments and will take precedence
         over the names defined in the registry.
         """
-        
+
         if not input_string:
             return self.Quantity(1)
 
         input_string = string_preprocessor(input_string)
         gen = tokenizer(input_string)
-        
+
         return build_eval_tree(gen).evaluate(lambda x : self._eval_token(x, case_sensitive=case_sensitive,
                                                                           **values))
 
